@@ -35,23 +35,23 @@ interface AccountParam {
  * const myExistingAccount = new Account({privateKey: 'myExistingPrivateKey'})
  *
  * // Sign a message
- * const hello_world = Uint8Array.from([104, 101, 108, 108, 111 119, 111, 114, 108, 100])
+ * const hello_world = Uint8Array.from([104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100])
  * const signature = myRandomAccount.sign(hello_world)
  *
  * // Verify a signature
  * myRandomAccount.verify(hello_world, signature)
  */
 export class Account {
-  _privateKey: PrivateKey;
-  _viewKey: ViewKey;
-  _address: Address;
+  private _privateKey: PrivateKey;
+  private _viewKey: ViewKey;
+  private _address: Address;
 
   constructor(params: AccountParam = {}) {
     try {
       this._privateKey = this.privateKeyFromParams(params);
     } catch (e) {
-      console.error("Wrong parameter", e);
-      throw new Error("Wrong Parameter");
+      console.error("Failed to initialize account:", e);
+      throw new Error("Failed to initialize account.");
     }
     this._viewKey = ViewKey.from_private_key(this._privateKey);
     this._address = Address.from_private_key(this._privateKey);
@@ -61,23 +61,24 @@ export class Account {
    * Attempts to create an account from a private key ciphertext
    * @param {PrivateKeyCiphertext | string} ciphertext
    * @param {string} password
-   * @returns {PrivateKey | Error}
+   * @returns {Account}
    *
    * @example
    * const ciphertext = PrivateKey.newEncrypted("password");
    * const account = Account.fromCiphertext(ciphertext, "password");
    */
-  public static fromCiphertext(ciphertext: PrivateKeyCiphertext | string, password: string) {
+  public static fromCiphertext(ciphertext: PrivateKeyCiphertext | string, password: string): Account {
     try {
       ciphertext = (typeof ciphertext === "string") ? PrivateKeyCiphertext.fromString(ciphertext) : ciphertext;
-      const _privateKey = PrivateKey.fromPrivateKeyCiphertext(ciphertext, password);
-      return new Account({ privateKey: _privateKey.to_string() });
+      const privateKey = PrivateKey.fromPrivateKeyCiphertext(ciphertext, password);
+      return new Account({ privateKey: privateKey.to_string() });
     } catch(e) {
-      throw new Error("Wrong password or invalid ciphertext");
+      console.error("Failed to create account from ciphertext:", e);
+      throw new Error("Failed to create account from ciphertext.");
     }
   }
 
-  private privateKeyFromParams(params: AccountParam) {
+  private privateKeyFromParams(params: AccountParam): PrivateKey {
     if (params.seed) {
       return PrivateKey.from_seed_unchecked(params.seed);
     }
@@ -87,32 +88,32 @@ export class Account {
     return new PrivateKey();
   }
 
-  privateKey() {
+  get privateKey(): PrivateKey {
     return this._privateKey;
   }
 
-  viewKey() {
+  get viewKey(): ViewKey {
     return this._viewKey;
   }
 
-  address() {
+  get address(): Address {
     return this._address;
   }
 
-  toString() {
-    return this.address().to_string()
+  toString(): string {
+    return this.address.to_string();
   }
 
   /**
    * Encrypt the account's private key with a password
-   * @param {string} ciphertext
+   * @param {string} password
    * @returns {PrivateKeyCiphertext}
    *
    * @example
    * const account = new Account();
    * const ciphertext = account.encryptAccount("password");
    */
-  encryptAccount(password: string) {
+  encryptAccount(password: string): PrivateKeyCiphertext {
     return this._privateKey.toCiphertext(password);
   }
 
@@ -164,7 +165,7 @@ export class Account {
    *     // Etc.
    * }
    */
-  ownsRecordCiphertext(ciphertext: RecordCiphertext | string) {
+  ownsRecordCiphertext(ciphertext: RecordCiphertext | string): boolean {
     if (typeof ciphertext === 'string') {
       try {
         const ciphertextObject = RecordCiphertext.fromString(ciphertext);
@@ -187,29 +188,4 @@ export class Account {
    * @returns {Signature}
    *
    * @example
-   * const account = new Account();
-   * const message = Uint8Array.from([104, 101, 108, 108, 111 119, 111, 114, 108, 100])
-   * account.sign(message);
-   */
-  sign(message: Uint8Array) {
-    return this._privateKey.sign(message);
-  }
-
-  /**
-   * Verifies the Signature on a message.
-   *
-   * @param {Uint8Array} message
-   * @param {Signature} signature
-   * @returns {boolean}
-   *
-   * @example
-   * const account = new Account();
-   * const message = Uint8Array.from([104, 101, 108, 108, 111 119, 111, 114, 108, 100])
-   * const signature = account.sign(message);
-   * account.verify(message, signature);
-   */
-  verify(message: Uint8Array, signature: Signature) {
-    return this._address.verify(message, signature);
-  }
-
-}
+  
